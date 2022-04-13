@@ -21,10 +21,11 @@
 					<u-alert customStyle="align-self: flex-start;" :title="alertTitle" type="warning"
 						:closable="alertClosable" :description="description"></u-alert>
 					<view style="margin-top: 10px;">
-					<u-code-input v-model="value" :maxlength="6" :focus="true">
-					</u-code-input>
+						<u-code-input v-model="value" :maxlength="6" :focus="true" @change="change" @finish="finish">
+						</u-code-input>
 					</view>
-					<u-button customStyle="margin-top: 10px; width: 100px;align-self:center" type="primary" text="加入"></u-button>
+					<u-button customStyle="margin-top: 10px; width: 100px;align-self:center" type="primary" text="加入"
+						@click="getCodeAndJoinGame"></u-button>
 				</view>
 			</u-popup>
 		</view>
@@ -40,6 +41,7 @@
 		},
 		data() {
 			return {
+				invitationCode: "",
 				alertTitle: "请输入邀请码",
 				description: "如果您是发起人请直接关闭此窗口",
 				popupData: {
@@ -77,9 +79,24 @@
 			this.onGetAuthorize();
 		},
 		methods: {
+			change(e) {
+				this.alertTitle = "请输入邀请码",
+					this.invitationCode = e;
+			},
+			finish(e) {
+				this.invitationCode = e;
+			},
 			close() {
 				this.show = false;
 			},
+			getCodeAndJoinGame() {
+				if (this.invitationCode.length === 6) {
+					this.joinGame();
+				} else {
+					this.alertTitle = "邀请码不合法，请重新输入";
+				}
+			},
+			//-----------后端交互-----------
 			createGame() {
 				uni.request({
 					method: 'POST',
@@ -100,8 +117,27 @@
 						this.text = 'request success';
 					}
 				});
-
 			},
+			joinGame() {
+				uni.request({
+					method: 'POST',
+					url: 'https://www.faultaddr.com/POST/game/joinGame', //仅为示例，并非真实接口地址。
+					data: {
+						invitationCode: this.invitationCode,
+						avatar: this.userInfo.avatar,
+						city: this.userInfo.city,
+						countryCode: this.userInfo.countryCode,
+						gender: this.userInfo.gender,
+						nickName: this.userInfo.nickName,
+						province: this.userInfo.province
+					},
+					dataType: 'json',
+					success: (res) => {
+						// TODO: get the participant and add
+					}
+				});
+			},
+			// -----------抽奖相关-----------
 			// 点击抽奖按钮触发回调
 			startCallBack() {
 				// 先开始旋转
@@ -138,6 +174,8 @@
 					this.results = "恭喜你，" + prize.fonts[0].text + ", 今天轮到你当值，快去召唤乞丐们吧！"
 				}
 			},
+
+			// -----------支付宝授权相关-----------
 			onGetAuthorize() {
 				my.getOpenUserInfo({
 					fail: res => {
