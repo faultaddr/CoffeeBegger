@@ -2,12 +2,13 @@
 	<view style="display: flex;flex-direction: column;">
 		<view style="margin-top: 20rpx;">
 			<LuckyWheel ref="myLucky" width="600rpx" height="600rpx" :blocks="blocks" :prizes="prizes"
-				:buttons="buttons" :defaultStyle="{defaultStyle:[{gutter: 2}]}" @start="startCallBack" @end="endCallBack" />
+				:buttons="buttons" :defaultStyle="{defaultStyle:[{gutter: 2}]}" @start="startCallBack"
+				@end="endCallBack" />
 		</view>
 		<text style="align-self: center;margin-top: 20rpx;" :results="results">{{results}}</text>
 		<!-- #ifdef MP-ALIPAY -->
-		<button type="primary" size="default" open-type="getAuthorize" scope="userInfo" @getAuthorize="onGetAuthorize"
-			@error="onAuthError">一键加入</button>
+		<button style="align-self: center;margin-top: 20rpx;" type="primary" size="default"
+			@click="createGame">一键开团</button>
 		<!-- #endif -->
 	</view>
 
@@ -22,83 +23,13 @@
 		data() {
 			return {
 				results: '咖啡乞丐，在线乞讨ing',
+				gameId: '',
+				userInfo: {},
 				blocks: [{
 					padding: '13px',
 					background: '#869cfa'
 				}],
-				prizes: [{
-						background: '#e9e8fe',
-						fonts: [{
-							text: "徐汇许广汉",
-							fontSize: 1
-						}],
-						imgs: [{
-							src: 'https://s4.ax1x.com/2022/02/20/Hqo4Zn.jpg',
-							width: '40%',
-							top: '10%'
-						}]
-					},
-					{
-						background: '#b8c5f2',
-						fonts: [{
-							text: "Android女爷爷",
-							fontSize: 1
-						}],
-						imgs: [{
-							src: 'https://s4.ax1x.com/2022/02/20/Hqofqs.jpg',
-							width: '40%',
-							top: '10%'
-						}]
-					},
-					{
-						background: '#e9e8fe',
-						fonts: [{
-							text: "yuanxi",
-							fontSize: 1
-						}],
-						imgs: [{
-							src: 'https://s4.ax1x.com/2022/02/20/HqoWrj.jpg',
-							width: '40%',
-							top: '10%'
-						}]
-					},
-					{
-						background: '#b8c5f2',
-						fonts: [{
-							text: "老鹤",
-							fontSize: 1
-						}],
-						imgs: [{
-							src: 'https://s4.ax1x.com/2022/02/20/HqoRMQ.jpg',
-							width: '40%',
-							top: '10%'
-						}]
-					},
-					{
-						background: '#e9e8fe',
-						fonts: [{
-							text: "老法",
-							fontSize: 1
-						}],
-						imgs: [{
-							src: 'https://s4.ax1x.com/2022/02/20/Hqogxg.jpg',
-							width: '40%',
-							top: '10%'
-						}]
-					},
-					{
-						background: '#b8c5f2',
-						fonts: [{
-							text: "地表最强高专",
-							fontSize: 1
-						}],
-						imgs: [{
-							src: 'https://s4.ax1x.com/2022/02/20/HqocRS.jpg',
-							width: '40%',
-							top: '10%'
-						}]
-					},
-				],
+				prizes: [],
 				buttons: [{
 					radius: '30%',
 					imgs: [{
@@ -108,37 +39,69 @@
 					}]
 				}],
 			}
+
+		},
+		mounted() {
+			this.onGetAuthorize();
 		},
 		methods: {
+			createGame() {
+				uni.request({
+					method: 'POST',
+					url: 'https://www.faultaddr.com/POST/game/createGame', //仅为示例，并非真实接口地址。
+					data: {
+						avatar: this.userInfo.avatar,
+						city: this.userInfo.city,
+						countryCode: this.userInfo.countryCode,
+						gender: this.userInfo.gender,
+						nickName: this.userInfo.nickName,
+						province: this.userInfo.province
+					},
+					dataType: 'json',
+					success: (res) => {
+						// 创建成功后建立websocket 通道，时刻sync 转盘的result 到服务端，其他用户通过服务端下发的result来进行转动
+						console.log(res.data);
+						this.gameId = res.data.message;
+						this.text = 'request success';
+					}
+				});
+
+			},
 			// 点击抽奖按钮触发回调
 			startCallBack() {
 				// 先开始旋转
 				this.$refs.myLucky.play()
 				// 使用定时器来模拟请求接口, 后端服务还没写好
-				// uni.request({
-				//     url: 'https://www.example.com/request', //仅为示例，并非真实接口地址。
-				//     data: {
-				//         text: 'uni.request'
-				//     },
-				//     header: {
-				//         'custom-header': 'hello' //自定义请求头信息
-				//     },
-				//     success: (res) => {
-				//         console.log(res.data);
-				//         this.text = 'request success';
-				//     }
-				// });
-				setTimeout(() => {
-					// 假设后端返回的中奖索引是0
-					const index = 0
-					// 调用stop停止旋转并传递中奖索引
-					this.$refs.myLucky.stop(index)
-				}, 3000)
+				console.log(this.gameId);
+				if (this.gameId !== '') {
+					uni.request({
+						url: 'https://www.faultaddr.com/GET/game/startGame', //仅为示例，并非真实接口地址。
+						data: {
+							gameId: this.gameId
+						},
+						success: (res) => {
+							console.log(res.data);
+							for (var i = 0; i < this.prizes.length; i++) {
+								if(this.prizes[i].imgs===undefined){
+									continue;
+								}
+								if (res.data.message.startsWith("http")  && this.prizes[i]
+									.imgs[0].src === res
+									.data.message) {
+									this.$refs.myLucky.stop(i);
+								}
+							}
+							this.text = 'request success';
+						}
+					});
+				}
 			},
 			// 抽奖结束触发回调
 			endCallBack(prize) {
 				// 奖品详情
-				this.results = prize.fonts[0].text
+				if (prize.fonts !== undefined) {
+					this.results = prize.fonts[0].text
+				}
 			},
 			onGetAuthorize() {
 				my.getOpenUserInfo({
@@ -148,8 +111,20 @@
 					success: res => {
 						const userInfo = JSON.parse(res.response).response; // 以下方的报文格式解析两层 response
 						var lens = this.prizes.length;
+						my.alert({
+							content: userInfo
+						})
+						this.userInfo.avatar = userInfo.avatar;
+						this.userInfo.city = userInfo.city;
+						this.userInfo.countryCode = userInfo.countryCode;
+						this.userInfo.gender = userInfo.gender;
+						this.userInfo.nickName = userInfo.nickName;
+						this.userInfo.province = userInfo.province;
+						my.alert({
+							content: this.userInfo
+						})
 						var newUser = {
-							background: Math.round(lens/2)==0 ? '#b8c5f2':'#e9e8fe',
+							background: Math.round(lens / 2) == 0 ? '#b8c5f2' : '#e9e8fe',
 							fonts: [{
 								text: userInfo.nickName,
 								fontSize: 1
@@ -161,9 +136,17 @@
 							}]
 						};
 						var users = []
-						this.prizes.map(item => users.push(item.fonts[0].text))
+						var realParticipant = []
+						this.prizes.map(item => {
+							if (item.fonts !== undefined) {
+								users.push(item.fonts[0].text)
+								realParticipant.push(item);
+								realParticipant.push({});
+							}
+						})
 						if (users.indexOf(newUser.fonts[0].text) === -1) {
-							this.prizes = this.prizes.concat(newUser);
+							this.prizes = [...realParticipant, newUser, {}, {}]
+							this.$refs.myLucky.init();
 						}
 					},
 				});
