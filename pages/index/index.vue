@@ -1,15 +1,33 @@
 <template>
-	<view style="display: flex;flex-direction: column;">
-		<view style="margin-top: 20rpx;">
-			<LuckyWheel ref="myLucky" width="600rpx" height="600rpx" :blocks="blocks" :prizes="prizes"
-				:buttons="buttons" :defaultStyle="{defaultStyle:[{gutter: 2}]}" @start="startCallBack"
-				@end="endCallBack" />
+	<view>
+		<view style="display: flex;flex-direction: column;">
+			<view style="margin-top: 20rpx;">
+				<LuckyWheel ref="myLucky" width="600rpx" height="600rpx" :blocks="blocks" :prizes="prizes"
+					:buttons="buttons" :defaultStyle="{defaultStyle:[{gutter: 2}]}" @start="startCallBack"
+					@end="endCallBack" />
+			</view>
+			<text style="align-self: center;margin-top: 20rpx;" :results="results">{{results}}</text>
+			<!-- #ifdef MP-ALIPAY -->
+			<button style="align-self: center;margin-top: 20rpx;" type="primary" size="default"
+				@click="createGame">一键开团</button>
+			<!-- #endif -->
+
 		</view>
-		<text style="align-self: center;margin-top: 20rpx;" :results="results">{{results}}</text>
-		<!-- #ifdef MP-ALIPAY -->
-		<button style="align-self: center;margin-top: 20rpx;" type="primary" size="default"
-			@click="createGame">一键开团</button>
-		<!-- #endif -->
+		<view>
+			<u-popup :mode="popupData.mode" :show="show" :round="popupData.round" :overlay="popupData.overlay"
+				:borderRadius="popupData.borderRadius" :closeable="popupData.closeable"
+				:closeOnClickOverlay="popupData.closeOnClickOverlay" @close="close" @open="open">
+				<view style="display: flex;flex-direction: column">
+					<u-alert customStyle="align-self: flex-start;" :title="alertTitle" type="warning"
+						:closable="alertClosable" :description="description"></u-alert>
+					<view style="margin-top: 10px;">
+					<u-code-input v-model="value" :maxlength="6" :focus="true">
+					</u-code-input>
+					</view>
+					<u-button customStyle="margin-top: 10px; width: 100px;align-self:center" type="primary" text="加入"></u-button>
+				</view>
+			</u-popup>
+		</view>
 	</view>
 
 </template>
@@ -22,6 +40,20 @@
 		},
 		data() {
 			return {
+				alertTitle: "请输入邀请码",
+				description: "如果您是发起人请直接关闭此窗口",
+				popupData: {
+					overlay: true,
+					mode: 'center',
+					round: 10,
+					closeOnClickOverlay: true,
+					safeAreaInsetBottom: false,
+					safeAreaInsetTop: false,
+					closeable: true,
+				},
+				title: '居中弹出',
+				iconUrl: 'https://cdn.uviewui.com/uview/demo/popup/modeCenter.png',
+				show: true,
 				results: '咖啡乞丐，在线乞讨ing',
 				gameId: '',
 				userInfo: {},
@@ -45,6 +77,9 @@
 			this.onGetAuthorize();
 		},
 		methods: {
+			close() {
+				this.show = false;
+			},
 			createGame() {
 				uni.request({
 					method: 'POST',
@@ -82,10 +117,10 @@
 						success: (res) => {
 							console.log(res.data);
 							for (var i = 0; i < this.prizes.length; i++) {
-								if(this.prizes[i].imgs===undefined){
+								if (this.prizes[i].imgs === undefined) {
 									continue;
 								}
-								if (res.data.message.startsWith("http")  && this.prizes[i]
+								if (res.data.message.startsWith("http") && this.prizes[i]
 									.imgs[0].src === res
 									.data.message) {
 									this.$refs.myLucky.stop(i);
@@ -100,7 +135,7 @@
 			endCallBack(prize) {
 				// 奖品详情
 				if (prize.fonts !== undefined) {
-					this.results = prize.fonts[0].text
+					this.results = "恭喜你，" + prize.fonts[0].text + ", 今天轮到你当值，快去召唤乞丐们吧！"
 				}
 			},
 			onGetAuthorize() {
@@ -111,18 +146,12 @@
 					success: res => {
 						const userInfo = JSON.parse(res.response).response; // 以下方的报文格式解析两层 response
 						var lens = this.prizes.length;
-						my.alert({
-							content: userInfo
-						})
 						this.userInfo.avatar = userInfo.avatar;
 						this.userInfo.city = userInfo.city;
 						this.userInfo.countryCode = userInfo.countryCode;
 						this.userInfo.gender = userInfo.gender;
 						this.userInfo.nickName = userInfo.nickName;
 						this.userInfo.province = userInfo.province;
-						my.alert({
-							content: this.userInfo
-						})
 						var newUser = {
 							background: Math.round(lens / 2) == 0 ? '#b8c5f2' : '#e9e8fe',
 							fonts: [{
