@@ -8,8 +8,8 @@
 			</view>
 			<text style="align-self: center;margin-top: 20rpx;" :results="results">{{results}}</text>
 			<!-- #ifdef MP-ALIPAY -->
-			<button style="align-self: center;margin-top: 20rpx;" type="primary" size="default"
-				@click="createGame">一键开团</button>
+			<u-button ref="createBtn" customStyle="margin-top: 10px; width: 100px;align-self:center" type="primary"
+				text="一键开团" @click="createGame"></u-button>
 			<!-- #endif -->
 
 		</view>
@@ -24,8 +24,12 @@
 						<u-code-input v-model="value" :maxlength="6" :focus="true" @change="change" @finish="finish">
 						</u-code-input>
 					</view>
-					<u-button customStyle="margin-top: 10px; width: 100px;align-self:center" type="primary" text="加入"
-						@click="getCodeAndJoinGame"></u-button>
+					<view style="align-self:center;display: flex;flex-direction: row;align-items: center;">
+						<u-button customStyle="margin-top: 20px; width: 100px;align-self: center" type="primary"
+							text="加入" @click="getCodeAndJoinGame"></u-button>
+						<u-loading-icon customStyle="align-self: center;margin-top:20px;" text="加入中"
+							:show="displayLoading"></u-loading-icon>
+					</view>
 				</view>
 			</u-popup>
 		</view>
@@ -41,6 +45,8 @@
 		},
 		data() {
 			return {
+				// showing
+				displayLoading: false,
 				invitationCode: "",
 				alertTitle: "请输入邀请码",
 				description: "如果您是发起人请直接关闭此窗口",
@@ -53,17 +59,10 @@
 					safeAreaInsetTop: false,
 					closeable: true,
 				},
+
+
 				title: '居中弹出',
 				iconUrl: 'https://cdn.uviewui.com/uview/demo/popup/modeCenter.png',
-				show: true,
-				results: '咖啡乞丐，在线乞讨ing',
-				gameId: '',
-				userInfo: {},
-				blocks: [{
-					padding: '13px',
-					background: '#869cfa'
-				}],
-				prizes: [],
 				buttons: [{
 					radius: '30%',
 					imgs: [{
@@ -72,11 +71,25 @@
 						top: '-130%'
 					}]
 				}],
+				blocks: [{
+					padding: '13px',
+					background: '#869cfa'
+				}],
+				// logic
+				show: true,
+				results: '咖啡乞丐，在线乞讨ing',
+				gameId: '',
+				userInfo: {},
+				socketTask: {},
+				prizes: [],
+				timeoutObj: null,
+				timeout: 30000
 			}
 
 		},
 		mounted() {
 			this.onGetAuthorize();
+			uni.$u.mpShare.title = '咖啡乞丐，在线发牌';
 		},
 		methods: {
 			change(e) {
@@ -96,6 +109,74 @@
 					this.alertTitle = "邀请码不合法，请重新输入";
 				}
 			},
+			//-----------websocket------------
+			// 判断是否已连接
+			checkOpenSocket() {
+				uni.sendSocketMessage({
+					data: 'ping',
+					success: res => {
+						return;
+					},
+					fail: err => {
+						// 未连接打开websocket连接
+						this.openConnection();
+					}
+				});
+			},
+			openConnection() {
+				// 打开连接
+				// uni.closeSocket(); // 确保已经关闭后再重新打开
+				uni.connectSocket({
+					url: "ws://47.116.14.84:8080/message_websocket?userId=" + this.userInfo.avatar,
+					success(res) {
+						console.log('连接成功 connectSocket=', res);
+					},
+					fail(err) {
+						console.log('连接失败 connectSocket=', err);
+					}
+				});
+				uni.onSocketOpen(res => {
+					console.log('连接成功');
+				});
+				this.onSocketMessage(); // 打开成功监听服务器返回的消息
+			},
+			//	打开成功监听服务器返回的消息
+			onSocketMessage() {
+				// 消息
+				this.timeout = 30000;
+				this.timeoutObj = null;
+				uni.onSocketMessage(res => {
+					console.log(res)
+					this.getSocketMsg(res.data); // 监听到有新服务器消息
+				});
+			},
+			// 监听到有新服务器消息
+			getSocketMsg(reData) {
+				// 监听到服务器消息
+				console.log('收到服务器消息', reData);
+				this.reset(); // 检测心跳reset,防止长时间连接导致连接关闭
+			},
+			// 检测心跳reset
+			reset() {
+				clearInterval(this.timeoutObj);
+				this.start(); // 启动心跳
+			},
+			// 启动心跳 start
+			start() {
+				this.timeoutObj = setInterval(function() {
+					uni.sendSocketMessage({
+						data: 'ping',
+						success: res => {
+							console.log('连接中....');
+						},
+						fail: err => {
+							console.log('连接失败重新连接....');
+							this.openConnection();
+						}
+					});
+				}, this.timeout);
+			},
+
 			//-----------后端交互-----------
 			createGame() {
 				uni.request({
@@ -113,27 +194,34 @@
 					success: (res) => {
 						// 创建成功后建立websocket 通道，时刻sync 转盘的result 到服务端，其他用户通过服务端下发的result来进行转动
 						console.log(res.data);
-						this.gameId = res.data.message;
+						uni.$u.mpShare.title = "咖啡乞丐，在线发牌，邀请码为： " + res.data.data.invitationCode;
+						this.gameId = res.data.data.gameId;
 						this.text = 'request success';
 					}
 				});
 			},
 			joinGame() {
+				this.checkOpenSocket();
+				var requestData = {
+					id: this.invitationCode,
+					avatar: this.userInfo.avatar,
+					city: this.userInfo.city,
+					countryCode: this.userInfo.countryCode,
+					gender: this.userInfo.gender,
+					nickName: this.userInfo.nickName,
+					province: this.userInfo.province
+				};
+				console.log(requestData);
 				uni.request({
 					method: 'POST',
-					url: 'https://www.faultaddr.com/POST/game/joinGame', //仅为示例，并非真实接口地址。
-					data: {
-						invitationCode: this.invitationCode,
-						avatar: this.userInfo.avatar,
-						city: this.userInfo.city,
-						countryCode: this.userInfo.countryCode,
-						gender: this.userInfo.gender,
-						nickName: this.userInfo.nickName,
-						province: this.userInfo.province
-					},
+					url: 'https://www.faultaddr.com/POST/game/joinGame',
+					data: requestData,
 					dataType: 'json',
 					success: (res) => {
 						// TODO: get the participant and add
+						this.show = false;
+						this.displayLoading = false;
+						console.log(res.data);
 					}
 				});
 			},

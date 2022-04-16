@@ -3,6 +3,8 @@ import App from './App'
 // #ifndef VUE3
 import Vue from 'vue'
 import uView from "uview-ui";
+let mpShare = require('uview-ui/libs/mixin/mpShare.js');
+Vue.mixin(mpShare)
 Vue.use(uView);
 Vue.config.productionTip = false
 App.mpType = 'app'
