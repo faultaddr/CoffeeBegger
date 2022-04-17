@@ -1,23 +1,39 @@
 <template>
 	<view>
 		<view style="display: flex;flex-direction: column;">
+			<u-notify ref="uNotify" message="当前轮盘人数少于三人,无法进行"></u-notify>
 			<view style="margin-top: 20rpx;">
 				<LuckyWheel ref="myLucky" width="600rpx" height="600rpx" :blocks="blocks" :prizes="prizes"
-					:buttons="buttons" :defaultStyle="{defaultStyle:[{gutter: 2}]}" @start="startCallBack"
-					@end="endCallBack" />
+					:buttons="buttons" @start="startCallBack" @end="endCallBack" />
 			</view>
 			<text style="align-self: center;margin-top: 20rpx;" :results="results">{{results}}</text>
 			<!-- #ifdef MP-ALIPAY -->
-			<u-button ref="createBtn" customStyle="margin-top: 10px; width: 100px;align-self:center" type="primary"
-				text="一键开团" @click="createGame"></u-button>
+			<button ref="createBtn" style="margin-top: 10px; width: 100px;align-self:center" type="primary"
+				@click="createGame">一键开团</button>
 			<!-- #endif -->
 
 		</view>
 		<view>
+			<u-popup :mode="popupData.mode" :show="authShow" :round="popupData.round" :overlay="popupData.overlay"
+				:borderRadius="popupData.borderRadius" :closeable="popupData.closeable"
+				:closeOnClickOverlay="popupData.closeOnClickOverlay" @close="authClose" @open="authOpen">
+				<view style="display: flex;flex-direction: column;padding: 20rpx;">
+					<u-alert customStyle="align-self: flex-start;" :title="authTitle" type="warning"
+						:closable="alertClosable" :description="description"></u-alert>
+					<view style="align-self:center;display: flex;flex-direction: row;align-items: center;">
+						<button style="margin-top: 20px; width: 100px;align-self: center" type="warn"
+							open-type="getAuthorize" @getAuthorize="onGetAuthorize" @error="onAuthError"
+							scope='userInfo'>点击授权</button>
+					</view>
+				</view>
+			</u-popup>
+		</view>
+
+		<view>
 			<u-popup :mode="popupData.mode" :show="show" :round="popupData.round" :overlay="popupData.overlay"
 				:borderRadius="popupData.borderRadius" :closeable="popupData.closeable"
 				:closeOnClickOverlay="popupData.closeOnClickOverlay" @close="close" @open="open">
-				<view style="display: flex;flex-direction: column">
+				<view style="display: flex;flex-direction: column;padding: 20rpx;">
 					<u-alert customStyle="align-self: flex-start;" :title="alertTitle" type="warning"
 						:closable="alertClosable" :description="description"></u-alert>
 					<view style="margin-top: 10px;">
@@ -25,13 +41,27 @@
 						</u-code-input>
 					</view>
 					<view style="align-self:center;display: flex;flex-direction: row;align-items: center;">
-						<u-button customStyle="margin-top: 20px; width: 100px;align-self: center" type="primary"
-							text="加入" @click="getCodeAndJoinGame"></u-button>
+						<button style="margin-top: 20px; width: 100px;align-self: center" type="primary"
+							@click="getCodeAndJoinGame">加入</button>
 						<u-loading-icon customStyle="align-self: center;margin-top:20px;" text="加入中"
 							:show="displayLoading"></u-loading-icon>
 					</view>
 				</view>
 			</u-popup>
+		</view>
+		<view style="margin: 20rpx;">
+			<u-text type="success" text="玩法介绍"></u-text>
+			<u-text style="margin-left: 10rpx;" size="12" type="info" lines="5"
+				text="如果你想要发起咖啡轮盘请客，请首先点击一键开团，然后点击右上角三个点分享给伙伴，让伙伴们通过链接或者邀请码进入。随后由开团者点击Go，其他人可以各自在手机上同步围观，最终抽中的人会跳转到咖啡页面，请乞丐们喝咖啡！">
+			</u-text>
+		</view>
+		<view>
+			<u-modal style="align-self: center;"title="快去分享给朋友吧" :show="showShareWindow" closeOnClickOverlay
+				showCancelButton>
+				<button slot="confirmButton" type="primary" shape="circle" open-type="share" @click="confirmShare">
+					确定
+				</button>
+			</u-modal>
 		</view>
 	</view>
 
@@ -43,11 +73,16 @@
 		components: {
 			LuckyWheel
 		},
+
 		data() {
 			return {
 				// showing
 				displayLoading: false,
+				showShareWindow: false,
 				invitationCode: "",
+				invitationMessage: "",
+				authShow: true,
+				authTitle: "获取当前用户信息",
 				alertTitle: "请输入邀请码",
 				description: "如果您是发起人请直接关闭此窗口",
 				popupData: {
@@ -59,8 +94,6 @@
 					safeAreaInsetTop: false,
 					closeable: true,
 				},
-
-
 				title: '居中弹出',
 				iconUrl: 'https://cdn.uviewui.com/uview/demo/popup/modeCenter.png',
 				buttons: [{
@@ -76,8 +109,9 @@
 					background: '#869cfa'
 				}],
 				// logic
-				show: true,
+				show: false,
 				results: '咖啡乞丐，在线乞讨ing',
+				isCreater: true,
 				gameId: '',
 				userInfo: {},
 				socketTask: {},
@@ -88,8 +122,17 @@
 
 		},
 		mounted() {
-			this.onGetAuthorize();
-			uni.$u.mpShare.title = '咖啡乞丐，在线发牌';
+			uni.$u.mpShare.title = '咖啡乞丐，在线乞讨';
+		},
+		onShareAppMessage(res) {
+			if (res.from === 'button') { // 来自页面内分享按钮
+				console.log(res.target)
+			}
+			console.log(this.invitationCode);
+			return {
+				title: '邀请码为 ' + this.invitationCode + " 咖啡乞丐，在线乞讨",
+				path: '/pages/index/index'
+			}
 		},
 		methods: {
 			change(e) {
@@ -99,15 +142,37 @@
 			finish(e) {
 				this.invitationCode = e;
 			},
+			open() {
+				console.log("弹窗open")
+			},
+			authOpen() {
+				console.log("授权弹窗open");
+			},
 			close() {
 				this.show = false;
+			},
+			authClose() {
+				this.authShow = false;
+				this.show = true;
 			},
 			getCodeAndJoinGame() {
 				if (this.invitationCode.length === 6) {
 					this.joinGame();
+					this.isCreater = false;
 				} else {
 					this.alertTitle = "邀请码不合法，请重新输入";
 				}
+			},
+			confirmShare() {
+				// 目前只有企业支付宝账户能用
+				// uni.setClipboardData({
+				// 	data: this.invitationMessage,
+				// 	success: function() {
+				// 		console.log('success');
+				// 	},
+				// 	showToast: true
+				// });
+				this.showShareWindow = false;
 			},
 			//-----------websocket------------
 			// 判断是否已连接
@@ -154,6 +219,8 @@
 			getSocketMsg(reData) {
 				// 监听到服务器消息
 				console.log('收到服务器消息', reData);
+				var data = JSON.parse(reData.data);
+				stopAtIndex(data.message);
 				this.reset(); // 检测心跳reset,防止长时间连接导致连接关闭
 			},
 			// 检测心跳reset
@@ -194,8 +261,10 @@
 					success: (res) => {
 						// 创建成功后建立websocket 通道，时刻sync 转盘的result 到服务端，其他用户通过服务端下发的result来进行转动
 						console.log(res.data);
-						uni.$u.mpShare.title = "咖啡乞丐，在线发牌，邀请码为： " + res.data.data.invitationCode;
+						this.invitationCode = res.data.data.invitationCode;
+						this.invitationMessage = "本次邀请码为:" + this.invitationCode + " ,快去召集乞丐吧";
 						this.gameId = res.data.data.gameId;
+						this.showShareWindow = true;
 						this.text = 'request success';
 					}
 				});
@@ -221,6 +290,8 @@
 						// TODO: get the participant and add
 						this.show = false;
 						this.displayLoading = false;
+						var data = JSON.parse(res.data.message);
+						this.gameId = data.gameId;
 						console.log(res.data);
 					}
 				});
@@ -228,11 +299,29 @@
 			// -----------抽奖相关-----------
 			// 点击抽奖按钮触发回调
 			startCallBack() {
+				// 先判断目前的开团人数，如果不超过3人不开团
+				var realPeople = this.prizes.filter(item => {
+					Object.keys(item).length !== 0
+				});
+				// if (realPeople.length < 3) {
+				// 	this.$refs.uNotify.show({
+				// 		top: 0,
+				// 		type: 'error',
+				// 		color: '#000',
+				// 		bgColor: '#9acafc',
+				// 		message: '当前人数少于三人，无法进行，快去召集伙伴吧',
+				// 		duration: 1000 * 3,
+				// 		fontSize: 10,
+				// 		safeAreaInsetTop: false
+				// 	});
+				// 	return;
+				// }
+				console.log("当前轮盘中：" + realPeople.length);
 				// 先开始旋转
 				this.$refs.myLucky.play()
 				// 使用定时器来模拟请求接口, 后端服务还没写好
 				console.log(this.gameId);
-				if (this.gameId !== '') {
+				if (this.gameId !== '' && this.isCreater === true) {
 					uni.request({
 						url: 'https://www.faultaddr.com/GET/game/startGame', //仅为示例，并非真实接口地址。
 						data: {
@@ -240,19 +329,28 @@
 						},
 						success: (res) => {
 							console.log(res.data);
-							for (var i = 0; i < this.prizes.length; i++) {
-								if (this.prizes[i].imgs === undefined) {
-									continue;
-								}
-								if (res.data.message.startsWith("http") && this.prizes[i]
-									.imgs[0].src === res
-									.data.message) {
-									this.$refs.myLucky.stop(i);
-								}
-							}
-							this.text = 'request success';
+							this.stopAtIndex(res.data.message);
+
 						}
 					});
+				}
+			},
+			stopAtIndex(avatar) {
+				for (var i = 0; i < this.prizes.length; i++) {
+					if (this.prizes[i].imgs === undefined) {
+						continue;
+					}
+					if (avatar.startsWith("http") && this.prizes[i]
+						.imgs[0].src === avatar) {
+						this.selectedAvatar = avatar;
+						this.$refs.myLucky.stop(i);
+						setTimeout(() => {
+							// 假设后端返回的中奖索引是0
+							uni.navigateTo({
+								url: "coffeestore/coffeestore"
+							})
+						}, 8000)
+					}
 				}
 			},
 			// 抽奖结束触发回调
@@ -264,14 +362,31 @@
 			},
 
 			// -----------支付宝授权相关-----------
+			getAuthCode() {
+				my.getAuthCode({
+					scopes: 'auth_user',
+					success: (res) => {
+						this.userInfo.userId = res.authCode;
+					},
+				});
+			},
 			onGetAuthorize() {
+				this.authShow = false;
 				my.getOpenUserInfo({
 					fail: res => {
+						console.log("getOpenUserInfo failed")
 						console.log(res);
 					},
 					success: res => {
 						const userInfo = JSON.parse(res.response).response; // 以下方的报文格式解析两层 response
+						console.log("success" + JSON.stringify(userInfo));
 						var lens = this.prizes.length;
+						if (userInfo.avatar === undefined) {
+							userInfo.avatar = "https://s1.ax1x.com/2022/04/17/LUuAQf.jpg";
+						}
+						if (userInfo.nickName === undefined) {
+							userInfo.nickName = "未知朋友，可能来自外太空，请FBI double check";
+						}
 						this.userInfo.avatar = userInfo.avatar;
 						this.userInfo.city = userInfo.city;
 						this.userInfo.countryCode = userInfo.countryCode;
@@ -286,7 +401,7 @@
 							}],
 							imgs: [{
 								src: userInfo.avatar,
-								width: '40%',
+								width: '30%',
 								top: '10%'
 							}]
 						};
@@ -307,10 +422,11 @@
 				});
 			},
 			// 授权失败回调
-			onAuthError() {
+			onAuthError(e) {
 				uni.showToast({
 					title: "授权失败回调"
 				});
+				console.log(e);
 			}
 		}
 	}

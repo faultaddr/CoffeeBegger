@@ -9,7 +9,16 @@
 				"navigationBarTitleText": "咖啡乞丐"
 			}
 		}
-	],
+	    ,{
+            "path" : "pages/index/coffeestore/coffeestore",
+            "style" :                                                                                    
+            {
+                "navigationBarTitleText": "",
+                "enablePullDownRefresh": false
+            }
+            
+        }
+    ],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "uni-app",
