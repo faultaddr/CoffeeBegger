@@ -28,7 +28,6 @@
 				</view>
 			</u-popup>
 		</view>
-
 		<view>
 			<u-popup :mode="popupData.mode" :show="show" :round="popupData.round" :overlay="popupData.overlay"
 				:borderRadius="popupData.borderRadius" :closeable="popupData.closeable"
@@ -56,7 +55,7 @@
 			</u-text>
 		</view>
 		<view>
-			<u-modal style="align-self: center;"title="快去分享给朋友吧" :show="showShareWindow" closeOnClickOverlay
+			<u-modal style="align-self: center;" title="快去分享给朋友吧" :show="showShareWindow" closeOnClickOverlay
 				showCancelButton>
 				<button slot="confirmButton" type="primary" shape="circle" open-type="share" @click="confirmShare">
 					确定
@@ -218,9 +217,53 @@
 			// 监听到有新服务器消息
 			getSocketMsg(reData) {
 				// 监听到服务器消息
+				// 存在两种情况，第一种是更新盘面，第二种是收到抽奖结果
 				console.log('收到服务器消息', reData);
-				var data = JSON.parse(reData.data);
-				stopAtIndex(data.message);
+				var data = JSON.parse(reData)
+				// 更新participant
+				if (data.code === 2) {
+					console.log("You Join the existed game, just refresh the whell");
+					// var newParticipant = this.prizes.filter(item => Object.keys(item).length !== 0);
+					// var lens = newParticipant.length;
+					// console.log("newParticipant: " + lens);
+					// console.log("newParticipant" + JSON.stringify(newParticipant));
+					// console.log("data.data:" + JSON.stringify(data.data));
+					var lens = data.data.length;
+					var newParticipant = [];
+					for (var i = 0; i < data.data.length; i++) {
+						var nickName = data.data[i].nickName;
+						var avatar = data.data[i].avatar;
+						console.log("nickName" + nickName);
+						if (nickName === undefined || nickName === "") {
+							nickName = "未知朋友，可能来自外太空，请FBI double check";
+						};
+						if (avatar === undefined || avatar === "" || avatar.startsWith("http") === false) {
+							avatar = "https://s1.ax1x.com/2022/04/17/LUuAQf.jpg";
+						};
+						var newUser = {
+							background: Math.round(lens / 2) == 0 ? '#b8c5f2' : '#e9e8fe',
+							fonts: [{
+								text: nickName,
+								fontSize: 1
+							}],
+							imgs: [{
+								src: avatar,
+								width: '30%',
+								top: '10%'
+							}]
+						};
+						console.log("newParticipant add: ");
+						newParticipant.push(newUser);
+					};
+					console.log("newParticipant:" + JSON.stringify(newParticipant));
+					this.prizes = newParticipant;
+				}
+				// 更新 抽奖结果
+				if (data.code === 3 && this.isCreater === false) {
+					this.$refs.myLucky.play();
+					this.stopAtIndex(data.message);
+				}
+
 				this.reset(); // 检测心跳reset,防止长时间连接导致连接关闭
 			},
 			// 检测心跳reset
@@ -266,6 +309,7 @@
 						this.gameId = res.data.data.gameId;
 						this.showShareWindow = true;
 						this.text = 'request success';
+						this.checkOpenSocket();
 					}
 				});
 			},
@@ -362,14 +406,14 @@
 			},
 
 			// -----------支付宝授权相关-----------
-			getAuthCode() {
-				my.getAuthCode({
-					scopes: 'auth_user',
-					success: (res) => {
-						this.userInfo.userId = res.authCode;
-					},
-				});
-			},
+			// getAuthCode() {
+			// 	my.getAuthCode({
+			// 		scopes: 'auth_user',
+			// 		success: (res) => {
+			// 			this.userInfo.userId = res.authCode;
+			// 		},
+			// 	});
+			// },
 			onGetAuthorize() {
 				this.authShow = false;
 				my.getOpenUserInfo({
@@ -418,6 +462,7 @@
 							this.prizes = [...realParticipant, newUser, {}, {}]
 							this.$refs.myLucky.init();
 						}
+						this.show = true;
 					},
 				});
 			},
