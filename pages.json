@@ -8,21 +8,40 @@
 			"style": {
 				"navigationBarTitleText": "咖啡乞丐"
 			}
+		}, {
+			"path": "pages/coffeestore/index",
+			"style": {
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
+
 		}
-	    ,{
-            "path" : "pages/index/coffeestore/coffeestore",
-            "style" :                                                                                    
-            {
-                "navigationBarTitleText": "",
-                "enablePullDownRefresh": false
-            }
-            
-        }
-    ],
+	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "uni-app",
 		"navigationBarBackgroundColor": "#55aaff",
 		"backgroundColor": "#F8F8F8"
+	},
+	"tabBar": {
+		"list": [{ // 第一个
+				"text": "首页",
+				"pagePath": "pages/index/index", // 页面路径
+				"iconPath": "https://cdn.uviewui.com/uview/common/bell.png", // 未选中时图标
+				"selectedIconPath": "https://cdn.uviewui.com/uview/common/bell-selected.png" // 选中时图标
+			},
+			{ // 第二个
+				"text": "推荐",
+				"pagePath": "pages/coffeestore/index",
+				"iconPath": "https://cdn.uviewui.com/uview/example/button.png",
+				"selectedIconPath": "https://cdn.uviewui.com/uview/example/button.png"
+			}
+			// { // 第三个
+			// 	"text": "我们",
+			// 	"pagePath": "pages/contact/contact",
+			// 	"iconPath": "static/tabs/contact.png",
+			// 	"selectedIconPath": "static/tabs/contact-active.png"
+			// }
+		]
 	}
 }
